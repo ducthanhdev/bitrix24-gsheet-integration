@@ -28,9 +28,7 @@ export class SyncService {
     this.duplicateCheckFields = this.configService.get<string[]>('sync.duplicateCheckFields') || ['email', 'phone'];
   }
 
-  /**
-   * Main sync method - processes all rows from Google Sheets
-   */
+  // Main sync method - processes all rows from Google Sheets
   async syncData(): Promise<SyncResult> {
     const startTime = Date.now();
     const stats: SyncStats = {
@@ -42,15 +40,12 @@ export class SyncService {
       duplicates: 0,
     };
 
-    this.logger.log('🔄 Starting data synchronization...');
-
     try {
-      // Read data from Google Sheets
       const rows = await this.googleSheetsService.readSheetData();
       stats.total = rows.length;
 
       if (rows.length === 0) {
-        this.logger.warn('⚠️ No data found to sync');
+        this.logger.warn('No data found to sync');
         return {
           success: true,
           stats,
@@ -59,7 +54,6 @@ export class SyncService {
         };
       }
 
-      // Process rows in batches
       const batchSize = this.configService.get<number>('sync.batchSize') || 10;
       const batches = this.chunkArray(rows, batchSize);
       
@@ -68,7 +62,7 @@ export class SyncService {
       }
 
       const duration = Date.now() - startTime;
-      this.logger.log(`✅ Sync completed: ${stats.created} created, ${stats.updated} updated, ${stats.errors} errors in ${duration}ms`);
+      this.logger.log(`Sync completed: ${stats.created} created, ${stats.updated} updated, ${stats.errors} errors in ${duration}ms`);
 
       return {
         success: true,
@@ -77,7 +71,7 @@ export class SyncService {
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      this.logger.error('❌ Sync failed:', error.message);
+      this.logger.error('Sync failed:', error.message);
       return {
         success: false,
         error: error.message,
@@ -88,23 +82,18 @@ export class SyncService {
     }
   }
 
-  /**
-   * Process a single row
-   */
+  // Process a single row
   private async processRow(row: GoogleSheetsRow, stats: SyncStats): Promise<void> {
-    // Skip if already synced and no changes detected
     if (row.syncStatus === this.statusValues.synced && !this.hasChanges(row)) {
       stats.skipped++;
       return;
     }
 
-    // Skip if marked as error and no changes
     if (row.syncStatus === this.statusValues.error && !this.hasChanges(row)) {
       stats.skipped++;
       return;
     }
 
-    // Map Google Sheets data to Bitrix24 format
     const leadData = this.mapRowToLeadData(row);
     
     if (!leadData) {
@@ -113,31 +102,24 @@ export class SyncService {
       return;
     }
 
-    // Check for duplicates
     const duplicates = await this.findDuplicates(leadData);
     
     if (duplicates.length > 0) {
-      // Update existing lead
       const existingLead = duplicates[0];
       await this.bitrix24Service.updateLead(existingLead.ID, leadData);
       await this.updateRowStatus(row, this.statusValues.synced, existingLead.ID);
       stats.updated++;
-      this.logger.log(`Updated existing lead ${existingLead.ID} for row ${row.rowNumber}`);
     } else {
-      // Create new lead
       const newLead = await this.bitrix24Service.createLead(leadData);
       await this.updateRowStatus(row, this.statusValues.synced, newLead.ID);
       stats.created++;
-      this.logger.log(`Created new lead ${newLead.ID} for row ${row.rowNumber}`);
     }
   }
 
-  /**
-   * Map Google Sheets row data to Bitrix24 lead format
-   */
+  // Map Google Sheets row data to Bitrix24 lead format
   private mapRowToLeadData(row: GoogleSheetsRow): Bitrix24LeadCreateRequest | null {
     const leadData: Bitrix24LeadCreateRequest = {
-      TITLE: '', // Required field
+      TITLE: '',
     };
 
     for (const [fieldName, mapping] of Object.entries(this.fieldMappings)) {
@@ -158,16 +140,12 @@ export class SyncService {
     return leadData;
   }
 
-  /**
-   * Get column value from row data
-   */
+  // Get column value from row data
   private getColumnValue(row: GoogleSheetsRow, columnName: string): string {
     return row.data[columnName] || '';
   }
 
-  /**
-   * Process field value based on type
-   */
+  // Process field value based on type
   private processFieldValue(value: string, type: string): any {
     switch (type) {
       case 'number':
@@ -181,16 +159,12 @@ export class SyncService {
     }
   }
 
-  /**
-   * Normalize phone number
-   */
+  // Normalize phone number
   private normalizePhone(phone: string): string {
     return phone.replace(/\D/g, '');
   }
 
-  /**
-   * Find duplicate leads
-   */
+  // Find duplicate leads
   private async findDuplicates(leadData: Bitrix24LeadCreateRequest): Promise<any[]> {
     const duplicates: any[] = [];
 
@@ -213,18 +187,13 @@ export class SyncService {
     return duplicates;
   }
 
-  /**
-   * Check if row has changes
-   */
+  // Check if row has changes
   private hasChanges(row: GoogleSheetsRow): boolean {
-    // Simple implementation - in production, you might want to compare with a hash
     return row.syncStatus === this.statusValues.pending || 
            row.syncStatus === this.statusValues.error;
   }
 
-  /**
-   * Update row status in Google Sheets
-   */
+  // Update row status in Google Sheets
   private async updateRowStatus(
     row: GoogleSheetsRow,
     status: string,
@@ -243,9 +212,7 @@ export class SyncService {
     }
   }
 
-  /**
-   * Get sync statistics
-   */
+  // Get sync statistics
   async getSyncStats(): Promise<SyncStats> {
     const rows = await this.googleSheetsService.readSheetData();
     
@@ -259,45 +226,31 @@ export class SyncService {
     };
   }
 
-  /**
-   * Reset sync status for all rows
-   */
+  // Reset sync status for all rows
   async resetSyncStatus(): Promise<void> {
-    this.logger.log('Resetting sync status for all rows...');
-    
     const rows = await this.googleSheetsService.readSheetData();
     
     for (const row of rows) {
       await this.updateRowStatus(row, this.statusValues.pending);
     }
-    
-    this.logger.log('Sync status reset completed');
   }
 
-  /**
-   * Process a batch of rows
-   */
+  // Process a batch of rows
   private async processBatch(rows: GoogleSheetsRow[], stats: SyncStats): Promise<void> {
-    this.logger.log(`🔄 Processing batch of ${rows.length} rows...`);
-    
-    // Process rows in parallel within the batch
     const promises = rows.map(async (row) => {
       try {
         await this.processRow(row, stats);
       } catch (error) {
-        this.logger.error(`❌ Error processing row ${row.rowNumber}: ${error.message}`);
+        this.logger.error(`Error processing row ${row.rowNumber}: ${error.message}`);
         stats.errors++;
         await this.updateRowStatus(row, 'error', undefined, error.message);
       }
     });
 
     await Promise.all(promises);
-    this.logger.log(`✅ Batch processed: ${rows.length} rows`);
   }
 
-  /**
-   * Split array into chunks
-   */
+  // Split array into chunks
   private chunkArray<T>(array: T[], chunkSize: number): T[][] {
     const chunks: T[][] = [];
     for (let i = 0; i < array.length; i += chunkSize) {

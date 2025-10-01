@@ -3,7 +3,6 @@ import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { HttpModule } from '@nestjs/axios';
 import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { GoogleSheetsModule } from './modules/google-sheets/google-sheets.module';
 import { Bitrix24Module } from './modules/bitrix24/bitrix24.module';
 import { SyncModule } from './modules/sync/sync.module';
@@ -25,11 +24,10 @@ import { loggerConfig } from './config/logger.config';
     SchedulerModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [],
 })
 export class AppModule {
   constructor() {
-    // Cấu hình logger
     loggerConfig;
   }
 }

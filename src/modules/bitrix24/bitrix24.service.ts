@@ -23,19 +23,14 @@ export class Bitrix24Service {
     this.domain = this.configService.get<string>('bitrix24.domain') || '';
   }
 
-  /**
-   * Create a new lead in Bitrix24
-   */
+  // Create new lead in Bitrix24
   async createLead(leadData: Bitrix24LeadCreateRequest): Promise<Bitrix24Lead> {
     try {
-      this.logger.log(`Creating new lead: ${leadData.TITLE}`);
-
       const response = await this.makeApiCall('crm.lead.add', {
         fields: leadData,
       });
 
       if (response.result) {
-        this.logger.log(`Lead created successfully with ID: ${response.result}`);
         return {
           ID: response.result,
           TITLE: leadData.TITLE,
@@ -52,20 +47,15 @@ export class Bitrix24Service {
     }
   }
 
-  /**
-   * Update an existing lead in Bitrix24
-   */
+  // Update existing lead in Bitrix24
   async updateLead(leadId: string, leadData: Bitrix24LeadUpdateRequest): Promise<Bitrix24Lead> {
     try {
-      this.logger.log(`Updating lead ID: ${leadId}`);
-
       const response = await this.makeApiCall('crm.lead.update', {
         id: leadId,
         fields: leadData,
       });
 
       if (response.result) {
-        this.logger.log(`Lead updated successfully: ${leadId}`);
         return await this.getLeadById(leadId);
       } else {
         throw new Error(`Failed to update lead: ${response.error_description || 'Unknown error'}`);
@@ -76,9 +66,7 @@ export class Bitrix24Service {
     }
   }
 
-  /**
-   * Get lead by ID
-   */
+  // Get lead by ID
   async getLeadById(leadId: string): Promise<Bitrix24Lead> {
     try {
       const response = await this.makeApiCall('crm.lead.get', {
@@ -96,9 +84,7 @@ export class Bitrix24Service {
     }
   }
 
-  /**
-   * Search for duplicate leads by email or phone
-   */
+  // Search for duplicate leads by email or phone
   async findDuplicateLeads(email?: string, phone?: string): Promise<Bitrix24Lead[]> {
     try {
       const filter: any = {};
@@ -131,13 +117,9 @@ export class Bitrix24Service {
     }
   }
 
-  /**
-   * Batch create multiple leads
-   */
+  // Batch create multiple leads
   async batchCreateLeads(leadsData: Bitrix24LeadCreateRequest[]): Promise<Bitrix24Lead[]> {
     try {
-      this.logger.log(`Batch creating ${leadsData.length} leads`);
-
       const batchCommands = leadsData.map((leadData, index) => ({
         cmd: `crm.lead.add`,
         params: { fields: leadData },
@@ -156,7 +138,6 @@ export class Bitrix24Service {
           COMPANY_TITLE: leadsData[index].COMPANY_TITLE,
         }));
 
-        this.logger.log(`Batch created ${results.length} leads successfully`);
         return results;
       } else {
         throw new Error('Failed to batch create leads');
@@ -167,9 +148,7 @@ export class Bitrix24Service {
     }
   }
 
-  /**
-   * Validate Bitrix24 connection
-   */
+  // Validate Bitrix24 connection
   async validateConnection(): Promise<boolean> {
     try {
       const response = await this.makeApiCall('crm.lead.fields');
@@ -180,22 +159,8 @@ export class Bitrix24Service {
     }
   }
 
-  /**
-   * Get available lead fields
-   */
-  async getLeadFields(): Promise<any> {
-    try {
-      const response = await this.makeApiCall('crm.lead.fields');
-      return response.result;
-    } catch (error) {
-      this.logger.error('Failed to get lead fields', error);
-      throw error;
-    }
-  }
 
-  /**
-   * Make API call to Bitrix24 with retry mechanism
-   */
+  // Make API call to Bitrix24 with retry mechanism
   private async makeApiCall(method: string, params: any = {}): Promise<Bitrix24ApiResponse> {
     const maxRetries = this.configService.get<number>('sync.retryAttempts') || 3;
     const retryDelay = this.configService.get<number>('sync.retryDelay') || 1000;
@@ -203,10 +168,7 @@ export class Bitrix24Service {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         const url = `${this.webhookUrl}${method}`;
-        const data = {
-          ...params,
-          // Bitrix24 webhook không cần auth parameter trong body
-        };
+        const data = { ...params };
 
         const response = await firstValueFrom(
           this.httpService.post(url, data, {
@@ -226,20 +188,15 @@ export class Bitrix24Service {
           throw error;
         }
 
-        // Exponential backoff
         const delay = retryDelay * Math.pow(2, attempt - 1);
-        this.logger.log(`Retrying in ${delay}ms...`);
         await this.delay(delay);
       }
     }
 
-    // This should never be reached, but TypeScript requires it
     throw new Error('Unexpected error in makeApiCall');
   }
 
-  /**
-   * Delay utility for retry mechanism
-   */
+  // Delay utility for retry mechanism
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
   }

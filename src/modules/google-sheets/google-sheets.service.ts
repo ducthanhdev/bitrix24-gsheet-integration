@@ -29,16 +29,13 @@ export class GoogleSheetsService {
       });
 
       this.sheets = google.sheets({ version: 'v4', auth });
-      this.logger.log('Google Sheets API initialized successfully');
     } catch (error) {
       this.logger.error('Failed to initialize Google Sheets API', error);
       throw error;
     }
   }
 
-  /**
-   * Read data from Google Sheets with retry mechanism
-   */
+  // Read data from Google Sheets with retry mechanism
   async readSheetData(): Promise<GoogleSheetsRow[]> {
     const maxRetries = this.configService.get<number>('sync.retryAttempts') || 3;
     const retryDelay = this.configService.get<number>('sync.retryDelay') || 1000;
@@ -56,7 +53,6 @@ export class GoogleSheetsService {
           return [];
         }
 
-        // Skip header row and process data
         const dataRows = values.slice(this.headerRow);
         const headers = values[this.headerRow - 1] || [];
 
@@ -70,7 +66,6 @@ export class GoogleSheetsService {
             errorMessage: this.getColumnValue(row, headers, 'M') || '',
           };
 
-          // Map data based on headers
           headers.forEach((header, colIndex) => {
             if (header && row[colIndex] !== undefined) {
               rowData.data[header] = row[colIndex];
@@ -80,34 +75,26 @@ export class GoogleSheetsService {
           return rowData;
         });
 
-        this.logger.log(`✅ Read ${rows.length} rows from Google Sheets`);
         return rows;
       } catch (error) {
         this.logger.warn(`Google Sheets API attempt ${attempt}/${maxRetries} failed:`, error.message);
         
         if (attempt === maxRetries) {
-          this.logger.error('❌ Failed to read data from Google Sheets after all retries', error.message);
+          this.logger.error('Failed to read data from Google Sheets after all retries', error.message);
           throw error;
         }
 
-        // Exponential backoff
         const delay = retryDelay * Math.pow(2, attempt - 1);
-        this.logger.log(`Retrying in ${delay}ms...`);
         await this.delay(delay);
       }
     }
 
-    // This should never be reached, but TypeScript requires it
     throw new Error('Unexpected error in readSheetData');
   }
 
-  /**
-   * Update specific cells in Google Sheets
-   */
+  // Update specific cells in Google Sheets
   async updateSheetData(updates: GoogleSheetsUpdateRequest[]): Promise<void> {
     try {
-      this.logger.log(`Updating ${updates.length} cells in Google Sheets`);
-
       const batchUpdateRequests = updates.map(update => ({
         range: `${update.sheetName || 'Sheet1'}!${update.cell}`,
         values: [[update.value]],
@@ -120,17 +107,13 @@ export class GoogleSheetsService {
           data: batchUpdateRequests,
         },
       });
-
-      this.logger.log('Successfully updated Google Sheets');
     } catch (error) {
       this.logger.error('Failed to update Google Sheets', error);
       throw error;
     }
   }
 
-  /**
-   * Update sync status for a specific row
-   */
+  // Update sync status for a specific row
   async updateRowSyncStatus(
     rowNumber: number,
     status: string,
@@ -165,23 +148,18 @@ export class GoogleSheetsService {
     await this.updateSheetData(updates);
   }
 
-  /**
-   * Get column value by column name
-   */
+  // Get column value by column name
   private getColumnValue(row: string[], headers: string[], columnName: string): string {
     const columnIndex = headers.indexOf(columnName);
     return columnIndex >= 0 && row[columnIndex] ? row[columnIndex] : '';
   }
 
-  /**
-   * Validate Google Sheets connection
-   */
+  // Validate Google Sheets connection
   async validateConnection(): Promise<boolean> {
     try {
       await this.sheets.spreadsheets.get({
         spreadsheetId: this.spreadsheetId,
       });
-      this.logger.log('Google Sheets connection validated successfully');
       return true;
     } catch (error) {
       this.logger.error('Google Sheets connection validation failed', error);
@@ -189,9 +167,7 @@ export class GoogleSheetsService {
     }
   }
 
-  /**
-   * Delay utility for retry mechanism
-   */
+  // Delay utility for retry mechanism
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
