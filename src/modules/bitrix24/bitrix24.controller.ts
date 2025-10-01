@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Body } from '@nestjs/common';
 import { Bitrix24Service } from './bitrix24.service';
-import { Bitrix24LeadCreateRequest } from './interfaces/bitrix24-lead-create-request.interface';
+import type { Bitrix24LeadCreateRequest } from './interfaces/bitrix24-lead-create-request.interface';
 
 @Controller('bitrix24')
 export class Bitrix24Controller {

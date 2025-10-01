@@ -9,6 +9,7 @@ import { Bitrix24Module } from './modules/bitrix24/bitrix24.module';
 import { SyncModule } from './modules/sync/sync.module';
 import { SchedulerModule } from './modules/scheduler/scheduler.module';
 import configuration from './config/configuration';
+import { loggerConfig } from './config/logger.config';
 
 @Module({
   imports: [
@@ -26,4 +27,9 @@ import configuration from './config/configuration';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule {
+  constructor() {
+    // Cấu hình logger
+    loggerConfig;
+  }
+}

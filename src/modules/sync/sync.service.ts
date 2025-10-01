@@ -6,7 +6,7 @@ import { GoogleSheetsRow } from '../google-sheets/interfaces/google-sheets-row.i
 import { Bitrix24LeadCreateRequest } from '../bitrix24/interfaces/bitrix24-lead-create-request.interface';
 import { Bitrix24LeadUpdateRequest } from '../bitrix24/interfaces/bitrix24-lead-update-request.interface';
 import { SyncResult } from './interfaces/sync-result.interface';
-import { SyncStats } from './interfaces/sync-stats.interface';
+import type { SyncStats } from './interfaces/sync-stats.interface';
 import * as mappingConfig from '../../config/mapping.json';
 
 @Injectable()
@@ -25,7 +25,7 @@ export class SyncService {
     this.fieldMappings = mappingConfig.fieldMappings;
     this.statusColumns = mappingConfig.statusColumns;
     this.statusValues = mappingConfig.statusValues;
-    this.duplicateCheckFields = this.configService.get<string[]>('sync.duplicateCheckFields');
+    this.duplicateCheckFields = this.configService.get<string[]>('sync.duplicateCheckFields') || ['email', 'phone'];
   }
 
   /**
@@ -42,28 +42,36 @@ export class SyncService {
       duplicates: 0,
     };
 
-    this.logger.log('Starting data synchronization...');
+    this.logger.log('🔄 Starting data synchronization...');
 
     try {
       // Read data from Google Sheets
       const rows = await this.googleSheetsService.readSheetData();
       stats.total = rows.length;
 
-      this.logger.log(`Found ${rows.length} rows to process`);
+      if (rows.length === 0) {
+        this.logger.warn('⚠️ No data found to sync');
+        return {
+          success: true,
+          stats,
+          duration: Date.now() - startTime,
+          timestamp: new Date().toISOString(),
+        };
+      }
 
       // Process each row
       for (const row of rows) {
         try {
           await this.processRow(row, stats);
         } catch (error) {
-          this.logger.error(`Error processing row ${row.rowNumber}:`, error);
+          this.logger.error(`❌ Error processing row ${row.rowNumber}: ${error.message}`);
           stats.errors++;
-          await this.updateRowStatus(row, 'error', null, error.message);
+          await this.updateRowStatus(row, 'error', undefined, error.message);
         }
       }
 
       const duration = Date.now() - startTime;
-      this.logger.log(`Sync completed in ${duration}ms`, stats);
+      this.logger.log(`✅ Sync completed: ${stats.created} created, ${stats.updated} updated, ${stats.errors} errors in ${duration}ms`);
 
       return {
         success: true,
@@ -72,7 +80,7 @@ export class SyncService {
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      this.logger.error('Sync failed:', error);
+      this.logger.error('❌ Sync failed:', error.message);
       return {
         success: false,
         error: error.message,
@@ -104,7 +112,7 @@ export class SyncService {
     
     if (!leadData) {
       stats.skipped++;
-      await this.updateRowStatus(row, 'error', null, 'Invalid or missing required data');
+      await this.updateRowStatus(row, 'error', undefined, 'Invalid or missing required data');
       return;
     }
 
@@ -131,19 +139,22 @@ export class SyncService {
    * Map Google Sheets row data to Bitrix24 lead format
    */
   private mapRowToLeadData(row: GoogleSheetsRow): Bitrix24LeadCreateRequest | null {
-    const leadData: Bitrix24LeadCreateRequest = {};
+    const leadData: Bitrix24LeadCreateRequest = {
+      TITLE: '', // Required field
+    };
 
     for (const [fieldName, mapping] of Object.entries(this.fieldMappings)) {
-      const columnValue = this.getColumnValue(row, mapping.googleSheetColumn);
+      const mappingTyped = mapping as any;
+      const columnValue = this.getColumnValue(row, mappingTyped.googleSheetColumn);
       
-      if (mapping.required && !columnValue) {
+      if (mappingTyped.required && !columnValue) {
         this.logger.warn(`Required field ${fieldName} is missing for row ${row.rowNumber}`);
         return null;
       }
 
       if (columnValue) {
-        const processedValue = this.processFieldValue(columnValue, mapping.type);
-        leadData[mapping.bitrix24Field] = processedValue;
+        const processedValue = this.processFieldValue(columnValue, mappingTyped.type);
+        leadData[mappingTyped.bitrix24Field] = processedValue;
       }
     }
 
@@ -191,11 +202,11 @@ export class SyncService {
         (mapping: any) => mapping.bitrix24Field === field.toUpperCase()
       );
 
-      if (fieldMapping && leadData[fieldMapping.bitrix24Field]) {
-        const value = leadData[fieldMapping.bitrix24Field];
+      if (fieldMapping && (fieldMapping as any).bitrix24Field && leadData[(fieldMapping as any).bitrix24Field as keyof Bitrix24LeadCreateRequest]) {
+        const value = leadData[(fieldMapping as any).bitrix24Field as keyof Bitrix24LeadCreateRequest];
         const found = await this.bitrix24Service.findDuplicateLeads(
-          field === 'email' ? value : undefined,
-          field === 'phone' ? value : undefined
+          field === 'email' ? value as string : undefined,
+          field === 'phone' ? value as string : undefined
         );
         
         duplicates.push(...found);

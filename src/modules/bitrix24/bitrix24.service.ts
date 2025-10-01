@@ -18,9 +18,9 @@ export class Bitrix24Service {
     private configService: ConfigService,
     private httpService: HttpService,
   ) {
-    this.webhookUrl = this.configService.get<string>('bitrix24.webhookUrl');
-    this.accessToken = this.configService.get<string>('bitrix24.accessToken');
-    this.domain = this.configService.get<string>('bitrix24.domain');
+    this.webhookUrl = this.configService.get<string>('bitrix24.webhookUrl') || '';
+    this.accessToken = this.configService.get<string>('bitrix24.accessToken') || '';
+    this.domain = this.configService.get<string>('bitrix24.domain') || '';
   }
 
   /**
@@ -201,7 +201,7 @@ export class Bitrix24Service {
       const url = `${this.webhookUrl}${method}`;
       const data = {
         ...params,
-        auth: this.accessToken,
+        // Bitrix24 webhook không cần auth parameter trong body
       };
 
       const response = await firstValueFrom(
@@ -213,7 +213,7 @@ export class Bitrix24Service {
         }),
       );
 
-      return response.data;
+      return (response as any).data;
     } catch (error) {
       this.logger.error(`API call failed for method: ${method}`, error);
       throw error;

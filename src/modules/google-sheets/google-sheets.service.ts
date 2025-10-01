@@ -14,9 +14,9 @@ export class GoogleSheetsService {
 
   constructor(private configService: ConfigService) {
     this.initializeGoogleSheets();
-    this.spreadsheetId = this.configService.get<string>('google.sheets.spreadsheetId');
-    this.range = this.configService.get<string>('google.sheets.range');
-    this.headerRow = this.configService.get<number>('google.sheets.headerRow');
+    this.spreadsheetId = this.configService.get<string>('google.sheets.spreadsheetId') || '';
+    this.range = this.configService.get<string>('google.sheets.range') || 'A:Z';
+    this.headerRow = this.configService.get<number>('google.sheets.headerRow') || 1;
   }
 
   private async initializeGoogleSheets() {
@@ -41,9 +41,7 @@ export class GoogleSheetsService {
    */
   async readSheetData(): Promise<GoogleSheetsRow[]> {
     try {
-      this.logger.log(`Reading data from sheet ${this.spreadsheetId}, range: ${this.range}`);
-      
-      const response = await this.sheets.spreadsheets.values.get({
+       const response = await this.sheets.spreadsheets.values.get({
         spreadsheetId: this.spreadsheetId,
         range: this.range,
       });
@@ -78,10 +76,10 @@ export class GoogleSheetsService {
         return rowData;
       });
 
-      this.logger.log(`Successfully read ${rows.length} rows from Google Sheets`);
+      this.logger.log(`✅ Read ${rows.length} rows from Google Sheets`);
       return rows;
     } catch (error) {
-      this.logger.error('Failed to read data from Google Sheets', error);
+      this.logger.error('❌ Failed to read data from Google Sheets', error.message);
       throw error;
     }
   }

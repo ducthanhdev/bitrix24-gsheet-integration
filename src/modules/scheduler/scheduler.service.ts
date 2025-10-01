@@ -19,23 +19,23 @@ export class SchedulerService {
   @Cron('*/15 * * * *') // Default: every 15 minutes
   async handleScheduledSync() {
     if (this.isRunning) {
-      this.logger.warn('Sync is already running, skipping scheduled execution');
+      this.logger.warn('⚠️ Sync is already running, skipping scheduled execution');
       return;
     }
 
     this.isRunning = true;
-    this.logger.log('Starting scheduled sync...');
+    this.logger.log('🔄 Starting scheduled sync...');
 
     try {
       const result = await this.syncService.syncData();
       
       if (result.success) {
-        this.logger.log('Scheduled sync completed successfully', result.stats);
+        this.logger.log(`✅ Scheduled sync completed: ${result.stats?.created || 0} created, ${result.stats?.updated || 0} updated`);
       } else {
-        this.logger.error('Scheduled sync failed:', result.error);
+        this.logger.error(`❌ Scheduled sync failed: ${result.error}`);
       }
     } catch (error) {
-      this.logger.error('Scheduled sync error:', error);
+      this.logger.error(`❌ Scheduled sync error: ${error.message}`);
     } finally {
       this.isRunning = false;
     }
