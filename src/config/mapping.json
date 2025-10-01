@@ -1,0 +1,72 @@
+{
+  "fieldMappings": {
+    "name": {
+      "googleSheetColumn": "A",
+      "bitrix24Field": "TITLE",
+      "required": true,
+      "type": "string"
+    },
+    "email": {
+      "googleSheetColumn": "B", 
+      "bitrix24Field": "EMAIL",
+      "required": true,
+      "type": "email",
+      "duplicateCheck": true
+    },
+    "phone": {
+      "googleSheetColumn": "C",
+      "bitrix24Field": "PHONE",
+      "required": false,
+      "type": "phone",
+      "duplicateCheck": true
+    },
+    "company": {
+      "googleSheetColumn": "D",
+      "bitrix24Field": "COMPANY_TITLE",
+      "required": false,
+      "type": "string"
+    },
+    "source": {
+      "googleSheetColumn": "E",
+      "bitrix24Field": "SOURCE_ID",
+      "required": false,
+      "type": "string"
+    },
+    "budget": {
+      "googleSheetColumn": "F",
+      "bitrix24Field": "OPPORTUNITY",
+      "required": false,
+      "type": "number"
+    },
+    "status": {
+      "googleSheetColumn": "G",
+      "bitrix24Field": "STATUS_ID",
+      "required": false,
+      "type": "string"
+    },
+    "assignedUser": {
+      "googleSheetColumn": "H",
+      "bitrix24Field": "ASSIGNED_BY_ID",
+      "required": false,
+      "type": "string"
+    },
+    "notes": {
+      "googleSheetColumn": "I",
+      "bitrix24Field": "COMMENTS",
+      "required": false,
+      "type": "string"
+    }
+  },
+  "statusColumns": {
+    "syncStatus": "J",
+    "leadId": "K", 
+    "lastSync": "L",
+    "errorMessage": "M"
+  },
+  "statusValues": {
+    "pending": "Chờ xử lý",
+    "synced": "Đã đồng bộ",
+    "error": "Lỗi",
+    "duplicate": "Trùng lặp"
+  }
+}
