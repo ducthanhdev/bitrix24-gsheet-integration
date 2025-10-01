@@ -140,7 +140,7 @@ describe('SyncService', () => {
         {
           rowNumber: 2,
           data: {},
-          syncStatus: 'synced',
+          syncStatus: 'Đã đồng bộ',
           leadId: '123',
           lastSync: '2023-01-01T00:00:00Z',
           errorMessage: '',
@@ -148,7 +148,7 @@ describe('SyncService', () => {
         {
           rowNumber: 3,
           data: {},
-          syncStatus: 'error',
+          syncStatus: 'Lỗi',
           leadId: '',
           lastSync: '',
           errorMessage: 'Test error',

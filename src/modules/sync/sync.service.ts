@@ -59,15 +59,12 @@ export class SyncService {
         };
       }
 
-      // Process each row
-      for (const row of rows) {
-        try {
-          await this.processRow(row, stats);
-        } catch (error) {
-          this.logger.error(`❌ Error processing row ${row.rowNumber}: ${error.message}`);
-          stats.errors++;
-          await this.updateRowStatus(row, 'error', undefined, error.message);
-        }
+      // Process rows in batches
+      const batchSize = this.configService.get<number>('sync.batchSize') || 10;
+      const batches = this.chunkArray(rows, batchSize);
+      
+      for (const batch of batches) {
+        await this.processBatch(batch, stats);
       }
 
       const duration = Date.now() - startTime;
@@ -275,5 +272,37 @@ export class SyncService {
     }
     
     this.logger.log('Sync status reset completed');
+  }
+
+  /**
+   * Process a batch of rows
+   */
+  private async processBatch(rows: GoogleSheetsRow[], stats: SyncStats): Promise<void> {
+    this.logger.log(`🔄 Processing batch of ${rows.length} rows...`);
+    
+    // Process rows in parallel within the batch
+    const promises = rows.map(async (row) => {
+      try {
+        await this.processRow(row, stats);
+      } catch (error) {
+        this.logger.error(`❌ Error processing row ${row.rowNumber}: ${error.message}`);
+        stats.errors++;
+        await this.updateRowStatus(row, 'error', undefined, error.message);
+      }
+    });
+
+    await Promise.all(promises);
+    this.logger.log(`✅ Batch processed: ${rows.length} rows`);
+  }
+
+  /**
+   * Split array into chunks
+   */
+  private chunkArray<T>(array: T[], chunkSize: number): T[][] {
+    const chunks: T[][] = [];
+    for (let i = 0; i < array.length; i += chunkSize) {
+      chunks.push(array.slice(i, i + chunkSize));
+    }
+    return chunks;
   }
 }

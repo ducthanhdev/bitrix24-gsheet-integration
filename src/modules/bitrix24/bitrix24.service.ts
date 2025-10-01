@@ -194,29 +194,53 @@ export class Bitrix24Service {
   }
 
   /**
-   * Make API call to Bitrix24
+   * Make API call to Bitrix24 with retry mechanism
    */
   private async makeApiCall(method: string, params: any = {}): Promise<Bitrix24ApiResponse> {
-    try {
-      const url = `${this.webhookUrl}${method}`;
-      const data = {
-        ...params,
-        // Bitrix24 webhook không cần auth parameter trong body
-      };
+    const maxRetries = this.configService.get<number>('sync.retryAttempts') || 3;
+    const retryDelay = this.configService.get<number>('sync.retryDelay') || 1000;
 
-      const response = await firstValueFrom(
-        this.httpService.post(url, data, {
-          timeout: 30000,
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }),
-      );
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const url = `${this.webhookUrl}${method}`;
+        const data = {
+          ...params,
+          // Bitrix24 webhook không cần auth parameter trong body
+        };
 
-      return (response as any).data;
-    } catch (error) {
-      this.logger.error(`API call failed for method: ${method}`, error);
-      throw error;
+        const response = await firstValueFrom(
+          this.httpService.post(url, data, {
+            timeout: 30000,
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }),
+        );
+
+        return (response as any).data;
+      } catch (error) {
+        this.logger.warn(`API call attempt ${attempt}/${maxRetries} failed for method: ${method}`, error.message);
+        
+        if (attempt === maxRetries) {
+          this.logger.error(`API call failed after ${maxRetries} attempts for method: ${method}`, error);
+          throw error;
+        }
+
+        // Exponential backoff
+        const delay = retryDelay * Math.pow(2, attempt - 1);
+        this.logger.log(`Retrying in ${delay}ms...`);
+        await this.delay(delay);
+      }
     }
+
+    // This should never be reached, but TypeScript requires it
+    throw new Error('Unexpected error in makeApiCall');
+  }
+
+  /**
+   * Delay utility for retry mechanism
+   */
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 }

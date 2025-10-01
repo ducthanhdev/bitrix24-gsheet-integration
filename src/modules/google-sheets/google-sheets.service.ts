@@ -37,51 +37,68 @@ export class GoogleSheetsService {
   }
 
   /**
-   * Read data from Google Sheets
+   * Read data from Google Sheets with retry mechanism
    */
   async readSheetData(): Promise<GoogleSheetsRow[]> {
-    try {
-       const response = await this.sheets.spreadsheets.values.get({
-        spreadsheetId: this.spreadsheetId,
-        range: this.range,
-      });
+    const maxRetries = this.configService.get<number>('sync.retryAttempts') || 3;
+    const retryDelay = this.configService.get<number>('sync.retryDelay') || 1000;
 
-      const values = response.data.values;
-      if (!values || values.length === 0) {
-        this.logger.warn('No data found in the specified range');
-        return [];
-      }
-
-      // Skip header row and process data
-      const dataRows = values.slice(this.headerRow);
-      const headers = values[this.headerRow - 1] || [];
-
-      const rows: GoogleSheetsRow[] = dataRows.map((row, index) => {
-        const rowData: GoogleSheetsRow = {
-          rowNumber: this.headerRow + index + 1,
-          data: {},
-          syncStatus: this.getColumnValue(row, headers, 'J') || 'pending',
-          leadId: this.getColumnValue(row, headers, 'K') || '',
-          lastSync: this.getColumnValue(row, headers, 'L') || '',
-          errorMessage: this.getColumnValue(row, headers, 'M') || '',
-        };
-
-        // Map data based on headers
-        headers.forEach((header, colIndex) => {
-          if (header && row[colIndex] !== undefined) {
-            rowData.data[header] = row[colIndex];
-          }
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await this.sheets.spreadsheets.values.get({
+          spreadsheetId: this.spreadsheetId,
+          range: this.range,
         });
 
-        return rowData;
-      });
+        const values = response.data.values;
+        if (!values || values.length === 0) {
+          this.logger.warn('No data found in the specified range');
+          return [];
+        }
 
-      this.logger.log(`✅ Read ${rows.length} rows from Google Sheets`);
-      return rows;
-    } catch (error) {
-      this.logger.error('❌ Failed to read data from Google Sheets', error.message);
-      throw error;
+        // Skip header row and process data
+        const dataRows = values.slice(this.headerRow);
+        const headers = values[this.headerRow - 1] || [];
+
+        const rows: GoogleSheetsRow[] = dataRows.map((row, index) => {
+          const rowData: GoogleSheetsRow = {
+            rowNumber: this.headerRow + index + 1,
+            data: {},
+            syncStatus: this.getColumnValue(row, headers, 'J') || 'pending',
+            leadId: this.getColumnValue(row, headers, 'K') || '',
+            lastSync: this.getColumnValue(row, headers, 'L') || '',
+            errorMessage: this.getColumnValue(row, headers, 'M') || '',
+          };
+
+          // Map data based on headers
+          headers.forEach((header, colIndex) => {
+            if (header && row[colIndex] !== undefined) {
+              rowData.data[header] = row[colIndex];
+            }
+          });
+
+          return rowData;
+        });
+
+        this.logger.log(`✅ Read ${rows.length} rows from Google Sheets`);
+        return rows;
+      } catch (error) {
+        this.logger.warn(`Google Sheets API attempt ${attempt}/${maxRetries} failed:`, error.message);
+        
+        if (attempt === maxRetries) {
+          this.logger.error('❌ Failed to read data from Google Sheets after all retries', error.message);
+          throw error;
+        }
+
+        // Exponential backoff
+        const delay = retryDelay * Math.pow(2, attempt - 1);
+        this.logger.log(`Retrying in ${delay}ms...`);
+        await this.delay(delay);
+      }
     }
+
+    // This should never be reached, but TypeScript requires it
+    throw new Error('Unexpected error in readSheetData');
   }
 
   /**
@@ -170,5 +187,12 @@ export class GoogleSheetsService {
       this.logger.error('Google Sheets connection validation failed', error);
       return false;
     }
+  }
+
+  /**
+   * Delay utility for retry mechanism
+   */
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 }

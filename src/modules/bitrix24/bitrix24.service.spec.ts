@@ -72,7 +72,6 @@ describe('Bitrix24Service', () => {
         expect.stringContaining('crm.lead.add'),
         expect.objectContaining({
           fields: leadData,
-          auth: 'test-token',
         }),
         expect.any(Object),
       );

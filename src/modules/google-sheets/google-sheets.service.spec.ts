@@ -54,12 +54,8 @@ describe('GoogleSheetsService', () => {
         },
       };
 
-      // Mock google.sheets
-      jest.doMock('googleapis', () => ({
-        google: {
-          sheets: jest.fn().mockReturnValue(mockSheets),
-        },
-      }));
+      // Mock the sheets property directly
+      (service as any).sheets = mockSheets;
 
       const result = await service.validateConnection();
       expect(result).toBe(true);
@@ -72,11 +68,8 @@ describe('GoogleSheetsService', () => {
         },
       };
 
-      jest.doMock('googleapis', () => ({
-        google: {
-          sheets: jest.fn().mockReturnValue(mockSheets),
-        },
-      }));
+      // Mock the sheets property directly
+      (service as any).sheets = mockSheets;
 
       const result = await service.validateConnection();
       expect(result).toBe(false);
