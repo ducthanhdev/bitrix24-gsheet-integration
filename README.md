@@ -308,74 +308,405 @@ For support and questions:
 - Test connections using CLI commands
 - Create an issue in the repository
 
-## Project setup
+## 🏗️ Architecture
 
-```bash
-$ npm install
+### System Components
+- **NestJS Application**: Main application framework
+- **Google Sheets Service**: Handles Google Sheets API integration
+- **Bitrix24 Service**: Manages Bitrix24 CRM operations
+- **Sync Service**: Core synchronization logic
+- **Scheduler Service**: Automated sync scheduling
+- **CLI Commands**: Manual operations interface
+
+### Data Flow
+```
+Google Sheets → Sync Service → Bitrix24 CRM
+     ↓              ↓              ↓
+  Read Data    Process & Map   Create/Update
+     ↓              ↓              ↓
+  Update Status ← Log Results ← API Response
 ```
 
-## Compile and run the project
+## 📋 API Reference
 
+### Authentication
+All API endpoints require proper configuration in environment variables.
+
+### Request/Response Examples
+
+#### Health Check
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+curl http://localhost:3000/health
+```
+Response:
+```json
+{
+  "status": "ok",
+  "timestamp": "2025-01-01T00:00:00.000Z",
+  "service": "Bitrix24 Google Sheets Integration"
+}
 ```
 
-## Run tests
-
+#### Manual Sync
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+curl -X POST http://localhost:3000/sync/start
+```
+Response:
+```json
+{
+  "success": true,
+  "stats": {
+    "total": 10,
+    "created": 5,
+    "updated": 3,
+    "skipped": 2,
+    "errors": 0,
+    "duplicates": 0
+  },
+  "duration": 1500,
+  "timestamp": "2025-01-01T00:00:00.000Z"
+}
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
+#### Sync Statistics
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+curl http://localhost:3000/sync/stats
+```
+Response:
+```json
+{
+  "success": true,
+  "stats": {
+    "total": 100,
+    "created": 45,
+    "updated": 30,
+    "skipped": 20,
+    "errors": 5,
+    "duplicates": 0
+  }
+}
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## 🔧 Advanced Configuration
 
-## Resources
+### Environment Variables
+Complete list of environment variables:
 
-Check out a few resources that may come in handy when working with NestJS:
+```env
+# Server Configuration
+PORT=3000
+NODE_ENV=development
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+# Google Sheets Configuration
+GOOGLE_CREDENTIALS_TYPE=service_account
+GOOGLE_PROJECT_ID=your-project-id
+GOOGLE_PRIVATE_KEY_ID=your-private-key-id
+GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY\n-----END PRIVATE KEY-----\n"
+GOOGLE_CLIENT_EMAIL=your-service-account@your-project.iam.gserviceaccount.com
+GOOGLE_CLIENT_ID=your-client-id
+GOOGLE_CLIENT_CERT_URL=https://www.googleapis.com/robot/v1/metadata/x509/your-service-account%40your-project.iam.gserviceaccount.com
 
-## Support
+# Google Sheets Details
+GOOGLE_SHEET_ID=your-google-sheet-id
+GOOGLE_SHEET_RANGE=A:Z
+GOOGLE_SHEET_HEADER_ROW=1
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+# Bitrix24 Configuration
+BITRIX24_WEBHOOK_URL=https://your-domain.bitrix24.com/rest/1/your-webhook-code/
+BITRIX24_ACCESS_TOKEN=your-access-token
+BITRIX24_DOMAIN=your-domain.bitrix24.com
 
-## Stay in touch
+# Sync Configuration
+SYNC_SCHEDULE=*/15 * * * *
+SYNC_BATCH_SIZE=10
+SYNC_RETRY_ATTEMPTS=3
+SYNC_RETRY_DELAY=1000
+SYNC_DUPLICATE_FIELDS=email,phone
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+# Logging Configuration
+LOG_LEVEL=info
+LOG_FILE=logs/app.log
+```
 
-## License
+### Field Mapping Configuration
+Edit `src/config/mapping.json` to customize field mappings:
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+```json
+{
+  "fieldMappings": {
+    "name": {
+      "googleSheetColumn": "A",
+      "bitrix24Field": "TITLE",
+      "required": true,
+      "type": "string"
+    },
+    "email": {
+      "googleSheetColumn": "B",
+      "bitrix24Field": "EMAIL",
+      "required": true,
+      "type": "email"
+    },
+    "phone": {
+      "googleSheetColumn": "C",
+      "bitrix24Field": "PHONE",
+      "required": false,
+      "type": "phone"
+    },
+    "company": {
+      "googleSheetColumn": "D",
+      "bitrix24Field": "COMPANY_TITLE",
+      "required": false,
+      "type": "string"
+    },
+    "source": {
+      "googleSheetColumn": "E",
+      "bitrix24Field": "SOURCE_ID",
+      "required": false,
+      "type": "string"
+    },
+    "budget": {
+      "googleSheetColumn": "F",
+      "bitrix24Field": "OPPORTUNITY",
+      "required": false,
+      "type": "number"
+    },
+    "status": {
+      "googleSheetColumn": "G",
+      "bitrix24Field": "STATUS_ID",
+      "required": false,
+      "type": "string"
+    },
+    "assignedUser": {
+      "googleSheetColumn": "H",
+      "bitrix24Field": "ASSIGNED_BY_ID",
+      "required": false,
+      "type": "string"
+    },
+    "notes": {
+      "googleSheetColumn": "I",
+      "bitrix24Field": "COMMENTS",
+      "required": false,
+      "type": "string"
+    }
+  },
+  "statusColumns": {
+    "syncStatus": "J",
+    "leadId": "K",
+    "lastSync": "L",
+    "errorMessage": "M"
+  },
+  "statusValues": {
+    "pending": "Chờ xử lý",
+    "synced": "Đã đồng bộ",
+    "error": "Lỗi",
+    "duplicate": "Trùng lặp"
+  }
+}
+```
+
+## 🚀 Deployment Options
+
+### 1. Docker Deployment (Recommended)
+```bash
+# Build and run with Docker Compose
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+```
+
+### 2. PM2 Process Manager
+```bash
+# Install PM2 globally
+npm install -g pm2
+
+# Build the application
+npm run build
+
+# Start with PM2
+pm2 start dist/main.js --name bitrix24-sync
+
+# Monitor
+pm2 monit
+
+# Stop
+pm2 stop bitrix24-sync
+```
+
+### 3. Systemd Service (Linux)
+Create `/etc/systemd/system/bitrix24-sync.service`:
+```ini
+[Unit]
+Description=Bitrix24 Google Sheets Integration
+After=network.target
+
+[Service]
+Type=simple
+User=nodejs
+WorkingDirectory=/opt/bitrix24-sync
+ExecStart=/usr/bin/node dist/main.js
+Restart=always
+RestartSec=10
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start:
+```bash
+sudo systemctl enable bitrix24-sync
+sudo systemctl start bitrix24-sync
+sudo systemctl status bitrix24-sync
+```
+
+## 📊 Monitoring and Alerting
+
+### Health Checks
+- **Application Health**: `GET /health`
+- **Google Sheets Connection**: `GET /google-sheets/validate`
+- **Bitrix24 Connection**: `GET /bitrix24/validate`
+
+### Logging
+- **Console Logs**: Real-time status updates
+- **File Logs**: Detailed logs in `logs/app.log`
+- **Log Levels**: `error`, `warn`, `info`, `debug`
+
+### Metrics
+- **Sync Statistics**: Track performance metrics
+- **Error Rates**: Monitor failure rates
+- **Processing Times**: Performance monitoring
+
+## 🔍 Troubleshooting Guide
+
+### Common Issues and Solutions
+
+#### 1. Google Sheets Permission Error
+**Error**: `The caller does not have permission`
+**Solution**:
+- Ensure service account has access to the sheet
+- Check if the sheet ID is correct
+- Verify service account email is added to sheet sharing
+
+#### 2. Bitrix24 Authentication Error
+**Error**: `401 Unauthorized`
+**Solution**:
+- Verify webhook URL is correct
+- Check webhook permissions
+- Ensure webhook is active
+
+#### 3. Sync Not Working
+**Symptoms**: No data syncing, empty logs
+**Solution**:
+- Check environment variables
+- Verify sheet has data
+- Test connections using CLI commands
+- Check application logs
+
+#### 4. High Memory Usage
+**Symptoms**: Application crashes, slow performance
+**Solution**:
+- Reduce batch size in configuration
+- Check for memory leaks in logs
+- Monitor system resources
+
+### Debug Commands
+```bash
+# Test Google Sheets connection
+npm run validate
+
+# Check sync statistics
+npm run stats
+
+# Manual sync with verbose logging
+LOG_LEVEL=debug npm run sync
+```
+
+### Log Analysis
+```bash
+# View recent logs
+tail -f logs/app.log
+
+# Search for errors
+grep "ERROR" logs/app.log
+
+# Monitor sync activity
+grep "Sync completed" logs/app.log
+```
+
+## 📈 Performance Optimization
+
+### Batch Processing
+- **Default Batch Size**: 10 records
+- **Configurable**: Set `SYNC_BATCH_SIZE` in environment
+- **Parallel Processing**: Within each batch
+
+### Rate Limiting
+- **Retry Mechanism**: 3 attempts with exponential backoff
+- **API Quotas**: Respects Google Sheets and Bitrix24 limits
+- **Delay Configuration**: Customizable retry delays
+
+### Memory Management
+- **Chunked Processing**: Large datasets processed in chunks
+- **Garbage Collection**: Automatic cleanup of processed data
+- **Resource Monitoring**: Built-in performance tracking
+
+## 🔒 Security Best Practices
+
+### Environment Variables
+- Store all sensitive data in environment variables
+- Never commit `.env` files to version control
+- Use different configurations for different environments
+
+### API Security
+- Use service accounts for Google Sheets
+- Implement webhook authentication for Bitrix24
+- Validate all input data
+- Implement rate limiting
+
+### Network Security
+- Use HTTPS for all API communications
+- Implement proper firewall rules
+- Monitor network traffic
+
+## 📚 Documentation
+
+### Project Documentation
+- [API Reference](docs/api-reference.md) - Complete API documentation
+- [Configuration Guide](docs/configuration-guide.md) - Detailed configuration options
+- [Troubleshooting Guide](docs/troubleshooting-guide.md) - Common issues and solutions
+- [Deployment Guide](docs/deployment-guide.md) - Deployment options and instructions
+- [Google Sheet Template](docs/google-sheet-template.md) - Required sheet structure
+
+### External Resources
+- [Google Sheets API Documentation](https://developers.google.com/sheets/api)
+- [Bitrix24 REST API Documentation](https://dev.1c-bitrix.ru/rest_help/)
+- [NestJS Documentation](https://docs.nestjs.com)
+
+### Community Support
+- GitHub Issues: Report bugs and request features
+- Stack Overflow: Technical questions
+- Discord: Real-time community support
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 🆘 Support
+
+For support and questions:
+- 📧 Email: support@example.com
+- 🐛 Issues: [GitHub Issues](https://github.com/your-repo/issues)
+- 📖 Documentation: [Wiki](https://github.com/your-repo/wiki)
+- 💬 Discussions: [GitHub Discussions](https://github.com/your-repo/discussions)
