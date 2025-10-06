@@ -16,7 +16,7 @@ export default () => ({
     sheets: {
       spreadsheetId: process.env.GOOGLE_SHEET_ID || '',
       range: process.env.GOOGLE_SHEET_RANGE || 'A:Z',
-      headerRow: parseInt(process.env.GOOGLE_SHEET_HEADER_ROW || '1', 10),
+      headerRow: parseInt(process.env.GOOGLE_SHEET_HEADER_ROW || '6', 10),
     },
   },
   bitrix24: {

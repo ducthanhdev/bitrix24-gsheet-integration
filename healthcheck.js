@@ -2,10 +2,10 @@ const http = require('http');
 
 const options = {
   hostname: 'localhost',
-  port: process.env.PORT || 3000,
+  port: 3000,
   path: '/health',
   method: 'GET',
-  timeout: 2000,
+  timeout: 3000
 };
 
 const req = http.request(options, (res) => {

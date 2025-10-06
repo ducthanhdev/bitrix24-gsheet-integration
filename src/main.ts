@@ -7,7 +7,6 @@ async function bootstrap() {
     logger: loggerConfig,
   });
   
-  // Chỉ hiển thị log quan trọng
   app.useLogger(loggerConfig);
   
   await app.listen(process.env.PORT ?? 3000);
@@ -15,3 +14,4 @@ async function bootstrap() {
   console.log(`🚀 Application is running on: http://localhost:${process.env.PORT ?? 3000}`);
 }
 bootstrap();
+ 

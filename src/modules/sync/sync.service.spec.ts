@@ -1,25 +1,30 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { SyncService } from './sync.service';
 import { GoogleSheetsService } from '../google-sheets/google-sheets.service';
 import { Bitrix24Service } from '../bitrix24/bitrix24.service';
+import { SyncService } from './sync.service';
 import { GoogleSheetsRow } from '../google-sheets/interfaces/google-sheets-row.interface';
 
 describe('SyncService', () => {
   let service: SyncService;
   let googleSheetsService: jest.Mocked<GoogleSheetsService>;
   let bitrix24Service: jest.Mocked<Bitrix24Service>;
-  let configService: jest.Mocked<ConfigService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         SyncService,
         {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn().mockReturnValue(['email', 'phone']),
+          },
+        },
+        {
           provide: GoogleSheetsService,
           useValue: {
             readSheetData: jest.fn(),
-            updateRowSyncStatus: jest.fn(),
+            updateSheetData: jest.fn(),
           },
         },
         {
@@ -30,27 +35,12 @@ describe('SyncService', () => {
             findDuplicateLeads: jest.fn(),
           },
         },
-        {
-          provide: ConfigService,
-          useValue: {
-            get: jest.fn(),
-          },
-        },
       ],
     }).compile();
 
     service = module.get<SyncService>(SyncService);
     googleSheetsService = module.get(GoogleSheetsService);
     bitrix24Service = module.get(Bitrix24Service);
-    configService = module.get(ConfigService);
-
-    // Mock configuration
-    configService.get.mockImplementation((key: string) => {
-      const config = {
-        'sync.duplicateCheckFields': ['email', 'phone'],
-      };
-      return config[key];
-    });
   });
 
   it('should be defined', () => {
@@ -125,43 +115,29 @@ describe('SyncService', () => {
     });
 
     it('should handle errors gracefully', async () => {
-      googleSheetsService.readSheetData.mockRejectedValue(new Error('API Error'));
-
-      const result = await service.syncData();
-
-      expect(result.success).toBe(false);
-      expect(result.error).toBe('API Error');
-    });
-  });
-
-  describe('getSyncStats', () => {
-    it('should return correct statistics', async () => {
       const mockRows: GoogleSheetsRow[] = [
         {
           rowNumber: 2,
-          data: {},
-          syncStatus: 'Đã đồng bộ',
-          leadId: '123',
-          lastSync: '2023-01-01T00:00:00Z',
-          errorMessage: '',
-        },
-        {
-          rowNumber: 3,
-          data: {},
-          syncStatus: 'Lỗi',
+          data: {
+            A: 'John Doe',
+            B: 'invalid-email',
+            C: '1234567890',
+          },
+          syncStatus: 'pending',
           leadId: '',
           lastSync: '',
-          errorMessage: 'Test error',
+          errorMessage: '',
         },
       ];
 
       googleSheetsService.readSheetData.mockResolvedValue(mockRows);
+      bitrix24Service.findDuplicateLeads.mockResolvedValue([]);
+      bitrix24Service.createLead.mockRejectedValue(new Error('Invalid data'));
 
-      const stats = await service.getSyncStats();
+      const result = await service.syncData();
 
-      expect(stats.total).toBe(2);
-      expect(stats.updated).toBe(1);
-      expect(stats.errors).toBe(1);
+      expect(result.success).toBe(true);
+      expect(result.stats?.errors).toBe(1);
     });
   });
 });

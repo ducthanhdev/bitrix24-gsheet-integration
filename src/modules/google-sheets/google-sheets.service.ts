@@ -99,14 +99,20 @@ export class GoogleSheetsService {
         range: `${update.sheetName || 'Sheet1'}!${update.cell}`,
         values: [[update.value]],
       }));
-
-      await this.sheets.spreadsheets.values.batchUpdate({
+      
+      // chỉ lấy values (mảng 2D)
+      const values = batchUpdateRequests.map(item => item.values[0]);
+      
+      await this.sheets.spreadsheets.values.append({
         spreadsheetId: this.spreadsheetId,
+        range: 'Sheet1!A:B',
+        insertDataOption: 'INSERT_ROWS',
+        valueInputOption: 'RAW',
         requestBody: {
-          valueInputOption: 'RAW',
-          data: batchUpdateRequests,
+          values, // ✅ giờ đúng format any[][]
         },
       });
+      
     } catch (error) {
       this.logger.error('Failed to update Google Sheets', error);
       throw error;

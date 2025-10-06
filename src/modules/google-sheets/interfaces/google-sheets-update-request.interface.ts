@@ -1,5 +1,5 @@
 export interface GoogleSheetsUpdateRequest {
-  cell: string;
-  value: string;
+  range: string;
+  values: string[][];
   sheetName?: string;
 }
